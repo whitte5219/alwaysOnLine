@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>always on line</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+    }
+
+    body {
+      background: #000000;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+
+    .panel {
+      max-width: 620px;
+      width: 100%;
+      background: #0b0b0b;
+      border: 1px solid #2a2a2a;
+      border-radius: 24px;
+      padding: 32px 28px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 400;
+      font-size: 2.4rem;
+      letter-spacing: 6px;
+      word-spacing: 4px;
+      text-transform: lowercase;
+      color: #f0f0f0;
+      margin-top: 0;
+      margin-bottom: 28px;
+      border-bottom: 1px solid #2e2e2e;
+      padding-bottom: 18px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .input-area {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    textarea {
+      background: #141414;
+      border: 1px solid #3a3a3a;
+      border-radius: 18px;
+      padding: 18px 18px;
+      font-size: 1.1rem;
+      line-height: 1.5;
+      color: #ffffff;
+      outline: none;
+      transition: border 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 130px;
+      max-height: 300px;
+    }
+
+    textarea:focus {
+      border-color: #7a7a7a;
+      box-shadow: 0 0 0 2px rgba(180, 180, 180, 0.2);
+    }
+
+    textarea:disabled {
+      opacity: 0.5;
+      background: #0e0e0e;
+      border-color: #2a2a2a;
+      color: #888;
+    }
+
+    /* Character counter */
+    .char-counter {
+      text-align: right;
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 4px;
+      margin-bottom: 6px;
+      font-family: monospace;
+    }
+
+    .char-counter.warning {
+      color: #d4a76a;
+    }
+
+    .char-counter.danger {
+      color: #c06060;
+    }
+
+    button {
+      background: #1e1e1e;
+      border: 1px solid #4a4a4a;
+      color: #f5f5f5;
+      font-weight: 600;
+      font-size: 1.3rem;
+      padding: 16px 18px;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-family: inherit;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+      margin-top: 8px;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2c2c2c;
+      border-color: #6e6e6e;
+      color: #ffffff;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background: #111;
+      border-color: #333;
+      box-shadow: none;
+    }
+
+    .description {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: #7a7a7a;
+      text-align: center;
+      font-style: italic;
+      letter-spacing: 0.2px;
+      line-height: 1.4;
+      padding: 0 8px;
+    }
+
+    .status-line {
+      margin-top: 12px;
+      min-height: 20px;
+      font-size: 0.85rem;
+      color: #c0a86a;
+      text-align: center;
+      font-family: monospace;
+    }
+
+    /* Toast – hidden completely off-screen by default */
+    .toast-success {
+      position: fixed;
+      top: -100px;               /* completely hidden above viewport */
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1a1a;
+      border: 1px solid #3a6b3a;
+      border-radius: 50px;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(80, 200, 80, 0.1);
+      z-index: 9999;
+      transition: top 0.3s cubic-bezier(0.2, 0.9, 0.1, 1), transform 0.3s;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+
+    .toast-success.show {
+      top: 24px;                 /* slides into view */
+    }
+
+    .toast-success span {
+      color: #e2e2e2;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .checkmark {
+      color: #4caf50;
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Toast notification (completely hidden until success) -->
+<div id="successToast" class="toast-success">
+  <span class="checkmark">✓</span>
+  <span>message successfully sent</span>
+</div>
+
+<div class="panel">
+  <h1>always on line</h1>
+
+  <div class="input-area">
+    <textarea id="messageInput" placeholder="your message ..." maxlength="1500" autocomplete="off"></textarea>
+    <div id="charCounter" class="char-counter">0 / 1500</div>
+    <button id="sendButton">Send</button>
+  </div>
+
+  <div class="description">
+    send a message to me (Whitte) — this is an always active connection line,<br>
+    which you can use to message me at any time from anywhere
+  </div>
+
+  <div id="statusMessage" class="status-line"></div>
+</div>
+
+<script>
+  (function() {
+    "use strict";
+
+    // ---------- CONFIG ----------
+    const WEBHOOK_URL = "https://discord.com/api/webhooks/1492615872982945995/FZMJHm9sIb0L4sIBAXtYPi5s3Mq0bGDbM2fX1X_fyDPkUGsleAufLCp6WSll8nYXxpS0";
+    const COOLDOWN_SECONDS = 60;
+    const MAX_CHARS = 1500;
+
+    // ---------- DOM elements ----------
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const statusDiv = document.getElementById('statusMessage');
+    const toast = document.getElementById('successToast');
+    const charCounter = document.getElementById('charCounter');
+
+    // ---------- State ----------
+    let isCooldownActive = false;
+    let cooldownRemaining = 0;
+    let countdownInterval = null;
+    let toastTimeout = null;
+
+    // ---------- Character counter ----------
+    function updateCharCounter() {
+      const len = messageInput.value.length;
+      charCounter.textContent = `${len} / ${MAX_CHARS}`;
+      
+      // Visual feedback
+      charCounter.classList.remove('warning', 'danger');
+      if (len >= MAX_CHARS) {
+        charCounter.classList.add('danger');
+      } else if (len >= MAX_CHARS * 0.9) {
+        charCounter.classList.add('warning');
+      }
+    }
+
+    messageInput.addEventListener('input', updateCharCounter);
+    // Initial counter
+    updateCharCounter();
+
+    // Enforce maxlength (already done via HTML attribute, but also trim if pasted)
+    messageInput.addEventListener('paste', (e) => {
+      setTimeout(() => {
+        if (messageInput.value.length > MAX_CHARS) {
+          messageInput.value = messageInput.value.slice(0, MAX_CHARS);
+          updateCharCounter();
+        }
+      }, 0);
+    });
+
+    // ---------- Helper: format date and time for Discord (two lines) ----------
+    function getFormattedDateTimeLines() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      
+      return {
+        dateLine: `[${year}/${month}/${day}]`,
+        timeLine: `[${hours}:${minutes}:${seconds}]`
+      };
+    }
+
+    // ---------- Toast control ----------
+    function showSuccessToast() {
+      if (toastTimeout) {
+        clearTimeout(toastTimeout);
+        toastTimeout = null;
+      }
+      toast.classList.add('show');
+      
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+        toastTimeout = null;
+      }, 3000);
+    }
+
+    // ---------- UI state management ----------
+    function setUIEnabled(enabled) {
+      messageInput.disabled = !enabled;
+      sendButton.disabled = !enabled;
+      if (enabled) {
+        sendButton.textContent = 'Send';
+      }
+    }
+
+    function updateButtonCountdown() {
+      if (cooldownRemaining > 0) {
+        sendButton.textContent = `Send (${cooldownRemaining}s)`;
+      } else {
+        sendButton.textContent = 'Send';
+      }
+    }
+
+    // ---------- Cooldown controller ----------
+    function startCooldown() {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+
+      isCooldownActive = true;
+      cooldownRemaining = COOLDOWN_SECONDS;
+      
+      setUIEnabled(false);
+      updateButtonCountdown();
+
+      countdownInterval = setInterval(() => {
+        cooldownRemaining -= 1;
+        updateButtonCountdown();
+
+        if (cooldownRemaining <= 0) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+          isCooldownActive = false;
+          setUIEnabled(true);
+        }
+      }, 1000);
+    }
+
+    // ---------- Send to Discord (new format: two bracketed lines then message) ----------
+    async function sendToDiscord(userMessage) {
+      const { dateLine, timeLine } = getFormattedDateTimeLines();
+      // Build content exactly as requested:
+      // [2026/04/11]
+      // [22:14:57]
+      // hello
+      const formattedContent = `${dateLine}\n${timeLine}\n${userMessage}`;
+
+      const payload = { content: formattedContent };
+
+      try {
+        const response = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          statusDiv.textContent = '';
+          showSuccessToast();
+          return { success: true };
+        } else {
+          let errorDetail = '';
+          try {
+            const errText = await response.text();
+            errorDetail = errText ? ` (${errText.slice(0, 100)})` : '';
+          } catch (e) { /* ignore */ }
+          statusDiv.textContent = `✗ webhook error ${response.status}${errorDetail}`;
+          return { success: false };
+        }
+      } catch (networkError) {
+        console.warn('fetch error', networkError);
+        statusDiv.textContent = '✗ network error · could not reach webhook';
+        return { success: false };
+      }
+    }
+
+    // ---------- Handle send ----------
+    async function onSendClick() {
+      if (isCooldownActive) {
+        statusDiv.textContent = `⏸ cooldown active · wait ${cooldownRemaining}s`;
+        return;
+      }
+
+      const rawMessage = messageInput.value;
+      const trimmed = rawMessage.trim();
+      
+      if (trimmed === '') {
+        statusDiv.textContent = '⚠ message cannot be empty';
+        return;
+      }
+
+      // Double‑check length (should be ≤1500 already)
+      if (trimmed.length > MAX_CHARS) {
+        statusDiv.textContent = `⚠ message exceeds ${MAX_CHARS} characters`;
+        return;
+      }
+
+      // Lock UI before sending
+      messageInput.disabled = true;
+      sendButton.disabled = true;
+      sendButton.textContent = '...sending';
+      statusDiv.textContent = '';
+
+      await sendToDiscord(trimmed);
+      startCooldown();
+    }
+
+    // ---------- Event listeners ----------
+    sendButton.addEventListener('click', onSendClick);
+
+    messageInput.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault();
+        if (!sendButton.disabled) onSendClick();
+      }
+    });
+
+    // Initialize UI
+    setUIEnabled(true);
+    statusDiv.textContent = '';
+  })();
+</script>
+</body>
+</html>
